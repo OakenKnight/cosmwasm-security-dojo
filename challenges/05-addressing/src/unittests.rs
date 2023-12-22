@@ -162,5 +162,101 @@ pub mod tests {
         assert_eq!(userdata.amount, Uint128::from(0_u64));        
     }   
 
+    #[test]
+    fn report_error_invalid_recepient() {
+        let (mut app, contract_addr) = proper_instantiate();
+        let sender = Addr::unchecked(USER);
+
+        // Deposit funds
+        app.execute_contract(
+            sender.clone(), 
+            contract_addr.clone(), 
+            &ExecuteMsg::Deposit {}, 
+            &coins(100, DENOM),
+        ).unwrap();
+
+        // Deny-list rcpt
+        app.execute_contract(
+            Addr::unchecked(ADMIN), 
+            contract_addr.clone(), 
+            &ExecuteMsg::AddToDenylist { address: "rcpt".to_string() }, 
+            &[],
+        ).unwrap();
+
+        // Failed withdraw of funds
+        let res = app.execute_contract(
+            sender.clone(), 
+            contract_addr.clone(), 
+            &ExecuteMsg::Withdraw {
+                amount: Uint128::from(100_u64),
+                destination: Some("rcpt".to_string()),
+            },
+            &[],
+        ).unwrap_err();
+        assert_eq!(
+            res.root_cause().to_string(), 
+            "Address is part of the denylist."
+        );      
+
+        // Allow-list rcpt
+        app.execute_contract(
+            Addr::unchecked(ADMIN), 
+            contract_addr.clone(), 
+            &ExecuteMsg::RemoveFromDenylist { address: "rcpt".to_string() }, 
+            &[],
+        ).unwrap();
+
+        // Successful withdraw of funds
+        let err = app.execute_contract(
+            sender.clone(), 
+            contract_addr.clone(), 
+            &ExecuteMsg::Withdraw {
+                amount: Uint128::from(100_u64),
+                destination: Some("RCPT".to_string()),
+            },
+            &[],
+        ).unwrap_err();
+
+        assert_eq!(err.root_cause().to_string(), "Generic error: Invalid input: address not normalized");
+
+        app.execute_contract(
+            sender.clone(), 
+            contract_addr.clone(), 
+            &ExecuteMsg::Withdraw {
+                amount: Uint128::from(100_u64),
+                destination: Some("rcpt".to_string()),
+            },
+            &[],
+        ).unwrap();
+
+
+    }   
+    // #[ignore="fixed bug"]
+    #[test]
+    pub fn report_error_instantiate_with_not_validated_denylist(){
+        const WRONGWHITELIST: &str = "USER2";
+        
+        let mut app = App::default();
+        let cw_template_id = app.store_code(challenge_contract());
+
+        // init contract
+        let msg = InstantiateMsg { initial_deny: vec![WRONGWHITELIST.to_string()] };
+
+        let err = app
+            .instantiate_contract(
+                cw_template_id,
+                Addr::unchecked(ADMIN),
+                &msg,
+                &[],
+                "test",
+                None,
+            )
+            .unwrap_err();
+
+            assert_eq!(err.root_cause().to_string(), "Generic error: Invalid input: address not normalized");
+
+
+    }
+
 }
 

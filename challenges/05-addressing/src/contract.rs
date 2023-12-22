@@ -24,14 +24,13 @@ pub fn instantiate(
     OWNER.save(deps.storage, &info.sender)?;
     let mut denylist : Vec<String> = vec![];
     for address in &msg.initial_deny {
-        
         let _ = match deps.api.addr_validate(address) {
             Ok(normalized_address)  => denylist.push(normalized_address.to_string()),
             Err(e) => return Err(ContractError::Std(e)),
         };
     }
-    DENYLIST.save(deps.storage, &msg.initial_deny)?;
-
+    DENYLIST.save(deps.storage, &denylist)?;
+// DENYLIST.save(deps.storage, &msg.initial_deny)?;
     // Return a success response with an attribute indicating the action
     Ok(Response::new().add_attribute("action", "instantiate"))
 }
