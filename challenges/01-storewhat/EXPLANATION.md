@@ -71,6 +71,6 @@ pub fn try_borrow(
 }
 ```
 
-By adding the line `USER_BORROW.save(deps.storage, &info.sender.to_string(), &borrowed_amount)?;`, we ensure that the user's borrow amount is properly updated in the contract's storage. This prevents the user from repeatedly borrowing funds.
+By adding the line `USER_BORROW.save(deps.storage, &info.sender, &borrowed_amount)?;`, we ensure that the user's borrow amount is properly updated in the contract's storage. This prevents the user from repeatedly borrowing funds.
 
 Now you've learned about this simple vulnerability and know how to fix it! Keep exploring, and don't hesitate to dive deeper into CosmWasm smart contract security. The more you learn, the more you'll be prepared to develop secure smart contracts and spot common pitfalls. Happy learning! 🚀

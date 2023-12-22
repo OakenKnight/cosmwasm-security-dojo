@@ -283,6 +283,7 @@ pub fn exec_accept_trade(
         deps.storage,
         (trade.asked_id.clone(), trade.trader.to_string()),
     );
+    SALES.remove(deps.storage, trade.asked_id.clone());
 
     Ok(Response::new()
         .add_attribute("action", "NFT traded")

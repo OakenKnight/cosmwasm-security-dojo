@@ -3,7 +3,7 @@
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
     to_binary, BalanceResponse, BankMsg, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env,
-    MessageInfo, Response, StdError, StdResult, Uint128,
+    MessageInfo, Response, StdError, StdResult, Uint128, Addr,
 };
 
 use crate::error::ContractError;
@@ -166,6 +166,9 @@ pub fn try_borrow(
 
     // Update the user's borrowed amount in storage
     borrowed_amount += amount;
+
+    // Update user borrow balance in storage
+    USER_BORROW.save(deps.storage, &info.sender, &borrowed_amount)?;
 
     // Return a success response with attributes indicating the method and amount
     Ok(Response::new()

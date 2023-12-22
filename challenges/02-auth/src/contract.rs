@@ -181,11 +181,14 @@ pub fn try_borrow(
 /// Updates contract owner
 pub fn try_update_config(
     deps: DepsMut,
-    _info: MessageInfo,
+    info: MessageInfo,
     new_owner: String,
 ) -> Result<Response, ContractError> {
     let mut config = CONFIG.load(deps.storage)?;
-
+    
+    if config.owner != info.sender {
+        return Err(ContractError:: Unauthorized {} );
+    }
     config.owner = deps.api.addr_validate(&new_owner)?;
 
     CONFIG.save(deps.storage, &config)?;
@@ -197,7 +200,7 @@ pub fn try_update_config(
 
 /// Withdraw platform fees
 pub fn try_withdraw_fees(deps: DepsMut, info: MessageInfo) -> Result<Response, ContractError> {
-    let config = CONFIG.load(deps.storage)?;
+    let mut config = CONFIG.load(deps.storage)?;
 
     if config.owner != info.sender {
         return Err(ContractError::Unauthorized {});
@@ -214,7 +217,8 @@ pub fn try_withdraw_fees(deps: DepsMut, info: MessageInfo) -> Result<Response, C
             amount: fees_to_withdraw,
         }],
     });
-
+    config.total_fee = Uint128::zero();
+    CONFIG.save(deps.storage, &config)?;
     Ok(Response::new()
         .add_message(msg)
         .add_attribute("method", "withdraw_fees")

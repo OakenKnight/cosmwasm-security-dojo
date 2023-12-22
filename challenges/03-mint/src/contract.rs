@@ -95,7 +95,7 @@ pub fn mint(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, Cont
         env.contract.address.to_string(),
         &QueryMsg::MintPerUser {
             user: info.sender.to_string(),
-            limit: None,
+            limit: None
         },
     )?;
 
@@ -163,7 +163,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::Whitelist {} => to_binary(&query_whitelist(deps)?),
         QueryMsg::MintPerUser { user, limit } => {
             to_binary(&query_mint_per_user(deps, user, limit)?)
-        }
+        },
     }
 }
 

@@ -1,11 +1,10 @@
 [package]
-name = "03-mint"
+name = "mint"
 version = "0.1.0"
 authors = ["Oak Security <info@oaksecurity.io>"]
 edition = "2021"
 
 exclude = [
-  # Those files are rust-optimizer artifacts. You might want to commit them for convenience but they should not be part of the source code publication.
   "contract.wasm",
   "hash.txt",
 ]
@@ -48,9 +47,9 @@ cw2 = "1.0.1"
 schemars = "0.8.10"
 serde = { version = "1.0.145", default-features = false, features = ["derive"] }
 thiserror = { version = "1.0.31" }
-cw721 = "0.17.0"
-cw721-base = "0.17.0"
+cw721 = "0.18.0"
+cw721-base = "0.18.0"
 cw-utils = "1.0.1"
 
 [dev-dependencies]
-cw-multi-test = "0.16.2"
+cw-multi-test = "0.20.0"

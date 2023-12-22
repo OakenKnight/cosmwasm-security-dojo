@@ -3,7 +3,7 @@
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
     to_binary, BankMsg, Binary, Coin, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Response,
-    StdError, StdResult, Uint128,
+    StdError, StdResult, Uint128, Addr,
 };
 use cw_utils::must_pay;
 
@@ -22,7 +22,14 @@ pub fn instantiate(
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
     OWNER.save(deps.storage, &info.sender)?;
-
+    let mut denylist : Vec<String> = vec![];
+    for address in &msg.initial_deny {
+        
+        let _ = match deps.api.addr_validate(address) {
+            Ok(normalized_address)  => denylist.push(normalized_address.to_string()),
+            Err(e) => return Err(ContractError::Std(e)),
+        };
+    }
     DENYLIST.save(deps.storage, &msg.initial_deny)?;
 
     // Return a success response with an attribute indicating the action
@@ -52,7 +59,7 @@ pub fn execute(
 
 // Deposit function to add funds to the contract
 pub fn try_deposit(deps: DepsMut, info: MessageInfo) -> Result<Response, ContractError> {
-    check_denylist(&deps, &info.sender.to_string())?;
+    check_denylist(&deps, &info.sender)?;
 
     // Validate that the correct token denomination is being deposited
     let amount = must_pay(&info, DENOM).unwrap();
@@ -83,7 +90,7 @@ pub fn try_withdraw(
     amount: Uint128,
     destination: Option<String>,
 ) -> Result<Response, ContractError> {
-    check_denylist(&deps, &info.sender.to_string())?;
+    check_denylist(&deps, &info.sender)?;
 
     // Validate that the withdrawal amount is non-zero
     if amount.is_zero() {
@@ -109,7 +116,7 @@ pub fn try_withdraw(
     // Assign recipient
     let mut recipient = info.sender.to_string();
     if let Some(destination) = destination {
-        check_denylist(&deps, &destination)?;
+        check_denylist(&deps, &deps.api.addr_validate(&destination)?)?;
         recipient = destination;
     }
 
@@ -141,7 +148,7 @@ pub fn try_add_deny(
 
     let address = deps.api.addr_validate(&address)?;
 
-    check_denylist(&deps, &address.to_string())?;
+    check_denylist(&deps, &address)?;
 
     let mut list = DENYLIST.load(deps.storage).unwrap();
 
@@ -168,7 +175,7 @@ pub fn try_remove_deny(
     let address = deps.api.addr_validate(&address)?.to_string();
 
     // Validate that the address is actually part of the current list
-    let mut current_denylist = DENYLIST.load(deps.storage)?;
+    let mut current_denylist: Vec<String> = DENYLIST.load(deps.storage)?;
     if !current_denylist.contains(&address) {
         return Err(ContractError::Std(StdError::generic_err(
             "Address not in denylist!",
@@ -200,10 +207,10 @@ pub fn try_distribute(deps: DepsMut, info: MessageInfo) -> Result<Response, Cont
 }
 
 // Helper function to check if an address is denylisted
-pub fn check_denylist(deps: &DepsMut, address: &String) -> Result<(), ContractError> {
+pub fn check_denylist(deps: &DepsMut, address: &Addr) -> Result<(), ContractError> {
     let denylist = DENYLIST.load(deps.storage)?;
 
-    if denylist.contains(address) {
+    if denylist.contains(&address.to_string()) {
         return Err(ContractError::Denylisted {});
     }
 

